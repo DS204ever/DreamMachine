@@ -135,14 +135,15 @@ NexSlider speedSlider = NexSlider(2,1,"h0");
 NexSlider colorSlider = NexSlider(2,3,"h1");
 NexSlider dimmerSlider = NexSlider(2,4,"h2");
 
-NexButton coldWhite = NexButton(4,1,"b0");
-NexButton pureWhite = NexButton(4,2,"b1");
-NexButton warmWhite = NexButton(4,3,"b2");
-NexButton whiteButton = NexButton(2,2,"b2");
+NexButton coldWhite = NexButton(5,1,"b0");
+NexButton pureWhite = NexButton(5,2,"b1");
+NexButton warmWhite = NexButton(5,3,"b2");
+NexButton whiteButton = NexButton(5,2,"b2");
+NexButton updateButton = NexButton(5,5,"b3");
 
-NexButton updateButton = NexButton(4,5,"b3");
+NexButton downloadButton = NexButton(4,2,"b0");
  
-NexTouch *nex_listen_list[] = {&updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
+NexTouch *nex_listen_list[] = {&downloadButton, &updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
 
 
 //dimmerLamp dimmer(triacpin, zcpin);
@@ -759,7 +760,8 @@ void updateCallback(void *ptr){
     }
   }
 }
-void downloadMusicsCallback(){
+void downloadMusicsCallback(void *ptr){
+  Serial.println("Entered");
   HTTPClient http;
   if(WIFI_MODE==AP){
     Serial.println("Changing WIFI MODE");
@@ -796,6 +798,11 @@ void downloadMusicsCallback(){
       http.end();
     }
   }
+}
+
+void playProgramCallback(void *ptr){
+  //File f = SD.open(,"r");
+
 }
 
 
@@ -846,6 +853,7 @@ void setup() {
   whiteButton.attachPop(whiteNextionCallback);
 
   updateButton.attachPop(updateCallback);
+  downloadButton.attachPop(downloadMusicsCallback);
   //END
 
   //STEPPER CODE
@@ -902,8 +910,37 @@ void setup() {
   }
   
 
+  //SD CARD CODE
+  int count = 0;
+  while(!SD.begin(4)||count!=10){
+    count++;
+    //Serial.println("Error initializing SD CARD.");
+    delay(250);
+  }
+  String comboBoxValues = "cb0.path=";
+  if(SD.begin(4)){
+    Serial.println("SD CARD Initialized.");
+    File f;
+    for (int i = 1; i <= 20; i++)
+    {
+      String file_name = String("/" + String(i) + ".txt");
+      if(f = SD.open(file_name, "r")){
+        comboBoxValues.concat(String(i) + "\r");
+        f.close();
+      }
+      
+    }
+    
+  }else{
+    Serial.println("Card couldn't be initialized");
+  }
+  
+  /*Serial.println("\"" + comboBoxValues + "\"");
+  Serial2.print(comboBoxValues);
+  Serial2.print("\xFF\xFF\xFF");*/
+  //END
 
-
+  
 
 
 
@@ -915,7 +952,7 @@ void setup() {
   server.begin();
   //END
 
-  pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
+  /*pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
   for(int i = 1; i<206; i=i+5){
       pixels.setBrightness(i);
       pixels.show();
@@ -938,19 +975,14 @@ void setup() {
   pixels.show();
   delay(500);
   pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
-  pixels.show();
+  pixels.show();*/
+  //delay(1000);
+  Serial.println("teste");
+  
   Serial2.print("page 1");
   Serial2.print("\xFF\xFF\xFF");
 
-  //SD CARD CODE
-  int count = 0;
-  /*while(!SD.begin(4)||count!=10){
-    count++;
-    Serial.println("Error initializing SD CARD.");
-    delay(250);
-  }
-  Serial.println("SD CARD Initialized.");*/
-  //END
+  
 }
 
 void loop(){ 
