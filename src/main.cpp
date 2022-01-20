@@ -3,13 +3,15 @@
 #include <OSCMessage.h> 
 #include <analogWrite.h> 
 #include "FastAccelStepper.h"
-#include <Nextion.h>  
+#include <Nextion.h>
+#include <EasyNextionLibrary.h>  
 #include <SerialMP3Player.h>
 #include <Adafruit_NeoPixel.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include <SD.h>
+#include <SoftwareSerial.h>
 #include <SPI.h>
 
 #define A1 100
@@ -76,9 +78,6 @@ int actual_delay = fadedelay;
 // normal delay for regular calls
 #define normal_delay 4
 
-
-
-
 //RX 17 e TX 16
 /*#define B1 33
 #define B2 12
@@ -142,8 +141,12 @@ NexButton whiteButton = NexButton(5,2,"b2");
 NexButton updateButton = NexButton(5,5,"b3");
 
 NexButton downloadButton = NexButton(4,2,"b0");
+NexButton playProgramButton = NexButton(4,3,"b1");
+
+NexVariable selectedProgram = NexVariable(4,6,"va0");
+
  
-NexTouch *nex_listen_list[] = {&downloadButton, &updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
+NexTouch *nex_listen_list[] = {&selectedProgram, &playProgramButton, &downloadButton, &updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
 
 
 //dimmerLamp dimmer(triacpin, zcpin);
@@ -802,13 +805,74 @@ void downloadMusicsCallback(void *ptr){
 
 void playProgramCallback(void *ptr){
   //File f = SD.open(,"r");
+  char program[10];
+  selectedProgram.getText(program,20);
+  /*uint32_t program;
+  selectedProgram.getValue(&program);*/
+  Serial.println(program);
+  File f = SD.open(String(program) + ".txt");
+  int count = f.readStringUntil('\r').toInt();
+  long musicStartTime = millis();
+  for(int i = 0; i < count;){
+    mp3.play();
+    int timestamp = f.readStringUntil(',').toInt();
+    String wave = f.readStringUntil(',');
+    float dimmer = f.readStringUntil(',').toFloat();
+    String color = f.readStringUntil('\r');
+    float currentTime = millis();
+    if(timestamp>(currentTime-musicStartTime)){
+      changeBrightness(255*(dimmer/10.0));
+      if(wave.equals("alpha")){
+        //CHANGE COLOR
+      }
+      if(color.equals("white")){
+
+      }
+      i++;
+    }
+  }
+  
+  
 
 }
+/*void changeSelectedProgramCallback(void *ptr){
+  Serial.println("variable changed");
+}*/
 
 
 void setup() {
   
+  
   Serial.begin(115200);
+  
+  //SD CARD CODE
+  int count = 0;
+  while(!SD.begin(4)||count!=10){
+    count++;
+    //Serial.println("Error initializing SD CARD.");
+    delay(250);
+  }
+  String comboBoxValues = "page6.cb0.path=\"";
+  //String comboBoxValues = "cb0.path=";
+  if(SD.begin(4)){
+    Serial.println("SD CARD Initialized.");
+    File f;
+    for (int i = 1; i <= 20; i++)
+    {
+      String file_name = String("/" + String(i) + ".txt");
+      if(SD.open(file_name, "r")){
+        comboBoxValues.concat(String(i) + "\\" + "r");
+      }
+      
+    }
+    comboBoxValues.concat("\"");
+    
+  }else{
+    Serial.println("Card couldn't be initialized");
+  }
+  
+  
+  //END
   //MP3 CODE
   mp3.begin(9600);      
   delay(500);            
@@ -854,6 +918,8 @@ void setup() {
 
   updateButton.attachPop(updateCallback);
   downloadButton.attachPop(downloadMusicsCallback);
+  playProgramButton.attachPop(playProgramCallback);
+  //selectedProgram.attachPop(changeSelectedProgramCallback);
   //END
 
   //STEPPER CODE
@@ -910,35 +976,7 @@ void setup() {
   }
   
 
-  //SD CARD CODE
-  int count = 0;
-  while(!SD.begin(4)||count!=10){
-    count++;
-    //Serial.println("Error initializing SD CARD.");
-    delay(250);
-  }
-  String comboBoxValues = "cb0.path=";
-  if(SD.begin(4)){
-    Serial.println("SD CARD Initialized.");
-    File f;
-    for (int i = 1; i <= 20; i++)
-    {
-      String file_name = String("/" + String(i) + ".txt");
-      if(f = SD.open(file_name, "r")){
-        comboBoxValues.concat(String(i) + "\r");
-        f.close();
-      }
-      
-    }
-    
-  }else{
-    Serial.println("Card couldn't be initialized");
-  }
   
-  /*Serial.println("\"" + comboBoxValues + "\"");
-  Serial2.print(comboBoxValues);
-  Serial2.print("\xFF\xFF\xFF");*/
-  //END
 
   
 
@@ -978,9 +1016,20 @@ void setup() {
   pixels.show();*/
   //delay(1000);
   Serial.println("teste");
+  Serial.println(comboBoxValues);
+  Serial.println(comboBoxValues);
+  Serial.println(comboBoxValues);
   
+  //Serial2.print("page6.cb0.path=\"1\r\"");
+  
+  Serial2.print(comboBoxValues);
+  Serial2.print("\xFF\xFF\xFF");
+
   Serial2.print("page 1");
   Serial2.print("\xFF\xFF\xFF");
+
+  
+  
 
   
 }
