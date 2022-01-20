@@ -27,7 +27,7 @@
 #define F3 8960
 #define F4 12800*/
   
-  
+File f;
 // CONFIGS!!
 // ----------------------------------------------
 
@@ -805,28 +805,45 @@ void downloadMusicsCallback(void *ptr){
 
 void playProgramCallback(void *ptr){
   //File f = SD.open(,"r");
-  char program[10];
-  selectedProgram.getText(program,20);
+  //char program[10];
+  //selectedProgram.getText(program,20);
   /*uint32_t program;
   selectedProgram.getValue(&program);*/
-  Serial.println(program);
-  File f = SD.open(String(program) + ".txt");
-  int count = f.readStringUntil('\r').toInt();
+  //Serial.println(program);
+  //File f = SD.open(String(program) + ".txt")
+  if(SD.begin(4)){
+    Serial.println("begin");
+  }
+  //delay(20000);
+  File f1 = SD.open("/1.txt", "FILE_READ");
+  while(!f1){
+    f1 = SD.open("/1.txt", "FILE_READ");
+    Serial.println("f trying to open");
+  }
+  //char fullText[20] = f.readString();
+  Serial.println(String(f1.available()));
+  Serial.println(String(f1.size()));
   long musicStartTime = millis();
+  int count= 0;
   for(int i = 0; i < count;){
     mp3.play();
-    int timestamp = f.readStringUntil(',').toInt();
-    String wave = f.readStringUntil(',');
-    float dimmer = f.readStringUntil(',').toFloat();
-    String color = f.readStringUntil('\r');
+    int timestamp = f1.readStringUntil(',').toInt();
+    String wave = f1.readStringUntil(',');
+    float dimmer = f1.readStringUntil(',').toFloat();
+    String color = f1.readStringUntil('\r\n');
     float currentTime = millis();
+    Serial.println("timestamp: " + String(timestamp));
+    Serial.println("wave: " + wave);
+    Serial.println("dimmer: " + String(dimmer));
+    Serial.println("color: " + color);
     if(timestamp>(currentTime-musicStartTime)){
       changeBrightness(255*(dimmer/10.0));
       if(wave.equals("alpha")){
         //CHANGE COLOR
+        stepper->setSpeedInHz(F3);
       }
       if(color.equals("white")){
-
+        pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
       }
       i++;
     }
@@ -838,7 +855,51 @@ void playProgramCallback(void *ptr){
 /*void changeSelectedProgramCallback(void *ptr){
   Serial.println("variable changed");
 }*/
-
+void testFunction(){
+  /*if(SD.begin(4)){
+    Serial.println("begin");
+  }*/
+  //delay(20000);
+  String file = "/1.txt";
+  /*File f1 = SD.open("/1.txt", "FILE_READ");
+    String s = f1.readString();
+    Serial.println("s: " + s);
+    f1.close();
+  File f1 = SD.open(file, "FILE_READ");*/
+  /*while(!f1){
+    f1 = SD.open("test.txt", "FILE_READ");
+    Serial.println("f trying to open");
+  }*/
+  //char fullText[20] = f.readString();
+  File f1 = SD.open(file, "FILE_READ");
+  Serial.println(String(f1.available()));
+  Serial.println(String(f1.size()));
+  long musicStartTime = millis();
+  int count= 0;
+  for(int i = 0; i < count;){
+    mp3.play();
+    int timestamp = f1.readStringUntil(',').toInt();
+    String wave = f1.readStringUntil(',');
+    float dimmer = f1.readStringUntil(',').toFloat();
+    String color = f1.readStringUntil('\r\n');
+    float currentTime = millis();
+    Serial.println("timestamp: " + String(timestamp));
+    Serial.println("wave: " + wave);
+    Serial.println("dimmer: " + String(dimmer));
+    Serial.println("color: " + color);
+    if(timestamp>(currentTime-musicStartTime)){
+      changeBrightness(255*(dimmer/10.0));
+      if(wave.equals("alpha")){
+        //CHANGE COLOR
+        stepper->setSpeedInHz(F3);
+      }
+      if(color.equals("white")){
+        pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
+      }
+      i++;
+    }
+  }
+}
 
 void setup() {
   
@@ -856,16 +917,21 @@ void setup() {
   //String comboBoxValues = "cb0.path=";
   if(SD.begin(4)){
     Serial.println("SD CARD Initialized.");
-    File f;
+    
     for (int i = 1; i <= 20; i++)
     {
       String file_name = String("/" + String(i) + ".txt");
-      if(SD.open(file_name, "r")){
+      f = SD.open(file_name, "r");
+      if(f){
         comboBoxValues.concat(String(i) + "\\" + "r");
+        //String s = f.readString();
+        //Serial.println("s: " + s);
       }
+      f.close();
       
     }
     comboBoxValues.concat("\"");
+    
     
   }else{
     Serial.println("Card couldn't be initialized");
@@ -883,16 +949,22 @@ void setup() {
   mp3.setVol(currentVolume);
   mp3.qVol();
   //END
-
+  
   //PIXEL INIT
   pixels.begin();
   whiteMode = pixels.Color(0,0,0,255);
   pixels.fill(pixels.Color(0,0,0,0),0,NUM_LEDS);
   pixels.show();
   //END
-
+  
   //NEXTION CODE
+  
   nexInit();
+  SD.begin(4);
+  f = SD.open("/1.txt", "r");
+  String s = f.readString();
+  Serial.println("s: " + s);
+
   bt0.attachPop(bt0PopCallback, &bt0);
   bt1.attachPop(bt1PopCallback, &bt1);
   bt2.attachPop(bt2PopCallback, &bt2);
@@ -977,7 +1049,7 @@ void setup() {
   
 
   
-
+  
   
 
 
@@ -1031,7 +1103,7 @@ void setup() {
   
   
 
-  
+  //testFunction();
 }
 
 void loop(){ 
