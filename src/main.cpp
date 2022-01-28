@@ -810,7 +810,9 @@ void downloadMusicsCallback(void *ptr){
 void playCompositionCallback(void *ptr){
   compositionMode = true;
   compositionFile = SD.open("/1.txt", "r");
-  compositionMusicStartTime = millis();
+  compositionMusicStartTime = millis()/1000;
+  compositionTimestamp = compositionFile.readStringUntil(',').toInt();
+  mp3.play();
   /*int count= f.readStringUntil('\r\n').toInt();
   Serial.println("count: " + count);*/
 }
@@ -820,6 +822,8 @@ void applyCompositionChanges(int dimmer, String wave, String color){
     if(wave.equals("alpha")){
       //CHANGE COLOR
       stepper->setSpeedInHz(F3);
+    }else if(wave.equals("teta")){
+      stepper->setSpeedInHz(F1);
     }
     if(color.equals("white")){
       pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
@@ -1127,9 +1131,10 @@ void loop(){
     //for(int i = 0; i < count;){
       //mp3.play();
       
-      float currentTime = millis();
+      float currentTime = millis()/1000;
       if(compositionTimestamp<(currentTime-compositionMusicStartTime)){
-        compositionTimestamp = compositionFile.readStringUntil(',').toInt();
+        Serial.println("currentTime: " + String(currentTime) + "   compositionMusicStartTime: " + compositionMusicStartTime);
+        
         String wave = compositionFile.readStringUntil(',');
         float dimmer = compositionFile.readStringUntil(',').toFloat();
         String color = compositionFile.readStringUntil('\r\n');
@@ -1140,11 +1145,12 @@ void loop(){
         Serial.println("dimmer: " + String(dimmer));
         Serial.println("color: " + color);
         applyCompositionChanges(dimmer,wave,color);
+        compositionTimestamp = compositionFile.readStringUntil(',').toInt();
         //i++;
       }
     //}
     
-    compositionFile.close(); //MUDAR PARA QUANDO STOP É CLICADO
+    //compositionFile.close(); //MUDAR PARA QUANDO STOP É CLICADO
     //ADICIONAR TEMPO DE FIM DA MUSICA
   }
 }
