@@ -31,6 +31,10 @@ File compositionFile;
 int compositionMusicStartTime;
 int compositionTimestamp = 0;
 boolean compositionMode = false;
+int compositionDimmer;
+float lastCompositionDimmer = 0;
+float lastCompositionTimestamp;
+int currentCompBright = 0;
 
 // CONFIGS!!
 // ----------------------------------------------
@@ -104,9 +108,9 @@ int currentVolume = 60;
 #define MAX_VOLUME 100;
 SerialMP3Player mp3(mp3RX,mp3TX);
 
-#define dirPinStepper 18
-#define enablePinStepper 21
-#define stepPinStepper 19
+#define dirPinStepper 33
+#define enablePinStepper 35
+#define stepPinStepper 32
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
@@ -141,7 +145,7 @@ NexSlider dimmerSlider = NexSlider(2,4,"h2");
 NexButton coldWhite = NexButton(5,1,"b0");
 NexButton pureWhite = NexButton(5,2,"b1");
 NexButton warmWhite = NexButton(5,3,"b2");
-NexButton whiteButton = NexButton(5,2,"b2");
+NexButton whiteButton = NexButton(2,2,"b2");
 NexButton updateButton = NexButton(5,5,"b3");
 
 NexButton downloadButton = NexButton(4,2,"b0");
@@ -808,26 +812,72 @@ void downloadMusicsCallback(void *ptr){
 }
 
 void playCompositionCallback(void *ptr){
-  compositionMode = true;
+  //compositionMode = true;
   compositionFile = SD.open("/1.txt", "r");
   compositionMusicStartTime = millis()/1000;
+  pixels.setBrightness(5);
+  //pixels.show();
+  char program[10];
+  selectedProgram.getText(program,10);
+  //String teste = String(program);
+  String file_name = "/" + String(program) + ".txt";
+  Serial.println(String(program));
+  
   compositionTimestamp = compositionFile.readStringUntil(',').toInt();
-  mp3.play();
+  //mp3.play();
   /*int count= f.readStringUntil('\r\n').toInt();
   Serial.println("count: " + count);*/
 }
 
 void applyCompositionChanges(int dimmer, String wave, String color){
-    changeBrightness(255*(dimmer/10.0));
-    if(wave.equals("alpha")){
-      //CHANGE COLOR
-      stepper->setSpeedInHz(F3);
-    }else if(wave.equals("teta")){
-      stepper->setSpeedInHz(F1);
-    }
+    color.trim();
+    Serial.print(color);
+    pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
     if(color.equals("white")){
+      Serial.println("ENTROU");
       pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
+    }else if(color.equals("red")){
+      pixels.fill(pixels.Color(255,0,0,0),0,NUM_LEDS);
+    }else if(color.equals("blue")){
+      pixels.fill(pixels.Color(0,0,255,0),0,NUM_LEDS);
+    }else if(color.equals("green")){
+      pixels.fill(pixels.Color(0,255,0,0),0,NUM_LEDS);
+    }else if(color.equals("purple")){
+      pixels.fill(pixels.Color(128,0,128,0),0,NUM_LEDS);
+    }else if(color.equals("yellow")){
+      pixels.fill(pixels.Color(255,192,0,0),0,NUM_LEDS);
+    }else if(color.equals("orange")){
+      pixels.fill(pixels.Color(255,165,0,0),0,NUM_LEDS);
+    }else if(color.equals("pink")){
+      pixels.fill(pixels.Color(255,20,147,0),0,NUM_LEDS);
     }
+    stepper->setAcceleration(A3);
+    if(wave.equals("delta")){
+      stepper->setSpeedInHz(F1);
+      stepper->runBackward();
+    }else if(wave.equals("theta")){
+      stepper->setSpeedInHz(F2);
+      stepper->runBackward();
+    }else if(wave.equals("alpha")){
+      stepper->setSpeedInHz(F3);
+      stepper->runBackward();
+    }else if(wave.equals("beta")){
+      stepper->setSpeedInHz(F4);
+      stepper->runBackward();
+    }else if(wave.equals("off")){
+      stepper->stopMove();
+      compositionMode=false;
+      mp3.stop();
+      while(currentCompBright!=0){
+        currentCompBright=currentCompBright-5;
+        Serial.println(currentCompBright);
+        pixels.setBrightness(currentCompBright);
+        pixels.show();
+      }
+    }
+    
+    //pixels.setBrightness(254*(dimmer/10.0));
+    pixels.show();
 }
 
 
@@ -1127,25 +1177,51 @@ void loop(){
   nexLoop(nex_listen_list);
   //wm.process();
   if(compositionMode){
-    
+      
     //for(int i = 0; i < count;){
       //mp3.play();
       
       float currentTime = millis()/1000;
+      if(currentCompBright>compositionDimmer){
+        
+        currentCompBright=currentCompBright-5;
+        Serial.println(currentCompBright);
+        pixels.setBrightness(currentCompBright);
+        pixels.show();
+        
+      }
+      if(currentCompBright<compositionDimmer){
+        Serial.println(currentCompBright);
+        currentCompBright=currentCompBright+5;
+        pixels.setBrightness(currentCompBright);
+        pixels.show();
+      }
+      /*if(compositionDimmer == -1){
+        //Serial.println("no fader");
+        float fader = (compositionTimestamp-(currentTime-compositionMusicStartTime))/(compositionTimestamp-lastCompositionTimestamp);
+        Serial.println((compositionTimestamp-(currentTime-(compositionMusicStartTime+lastCompositionTimestamp))));
+        Serial.println((compositionTimestamp-lastCompositionTimestamp));
+        Serial.println(fader);
+        pixels.setBrightness(lastCompositionDimmer*fader);
+        pixels.show();
+      }*/
       if(compositionTimestamp<(currentTime-compositionMusicStartTime)){
         Serial.println("currentTime: " + String(currentTime) + "   compositionMusicStartTime: " + compositionMusicStartTime);
-        
+        lastCompositionDimmer=compositionDimmer;
         String wave = compositionFile.readStringUntil(',');
-        float dimmer = compositionFile.readStringUntil(',').toFloat();
-        String color = compositionFile.readStringUntil('\r\n');
+        compositionDimmer = compositionFile.readStringUntil(',').toFloat();
+        compositionDimmer = 255*compositionDimmer/10.0;
+        String color = compositionFile.readStringUntil('\n');
         
 
         Serial.println("timestamp: " + String(compositionTimestamp));
         Serial.println("wave: " + wave);
-        Serial.println("dimmer: " + String(dimmer));
+        Serial.println("dimmer: " + String(compositionDimmer));
         Serial.println("color: " + color);
-        applyCompositionChanges(dimmer,wave,color);
+        applyCompositionChanges(compositionDimmer,wave,color);
+        //lastCompositionTimestamp = compositionTimestamp;
         compositionTimestamp = compositionFile.readStringUntil(',').toInt();
+        
         //i++;
       }
     //}

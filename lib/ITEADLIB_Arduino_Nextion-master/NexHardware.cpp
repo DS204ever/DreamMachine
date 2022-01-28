@@ -223,7 +223,7 @@ bool nexInit(void)
     bool ret2 = false;
     
     dbSerialBegin(115200);
-    nexSerial.begin(921600, SERIAL_8N1, 26,25);
+    nexSerial.begin(921600, SERIAL_8N1, 26,27);
     sendCommand("");
     sendCommand("bkcmd=1");
     ret1 = recvRetCommandFinished();
