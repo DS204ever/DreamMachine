@@ -841,7 +841,7 @@ void playCompositionCallback(void *ptr){
     //compositionMode = true;
     pixels.setBrightness(5);
     //pixels.show();
-    uint32_t program;
+    uint32_t program = 0;
     //char program[10];
     selectedProgram.getValue(&program);
     program++;
