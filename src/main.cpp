@@ -35,6 +35,8 @@ int compositionDimmer;
 float lastCompositionDimmer = 0;
 float lastCompositionTimestamp;
 int currentCompBright = 0;
+float compositionTimePaused;
+boolean compositionPaused = false;
 
 // CONFIGS!!
 // ----------------------------------------------
@@ -150,11 +152,13 @@ NexButton updateButton = NexButton(5,5,"b3");
 
 NexButton downloadButton = NexButton(4,2,"b0");
 NexButton playCompositionButton = NexButton(4,3,"b1");
+NexButton pauseCompositionButton = NexButton(4,7,"b2");
+NexButton stopCompositionButton = NexButton(4,8,"b3");
 
 NexVariable selectedProgram = NexVariable(4,6,"va0");
 
  
-NexTouch *nex_listen_list[] = {&selectedProgram, &playCompositionButton, &downloadButton, &updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
+NexTouch *nex_listen_list[] = {&selectedProgram, &stopCompositionButton, &pauseCompositionButton, &playCompositionButton, &downloadButton, &updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
 
 
 //dimmerLamp dimmer(triacpin, zcpin);
@@ -811,22 +815,54 @@ void downloadMusicsCallback(void *ptr){
   }
 }
 
+void stopCompositionCallback(void *ptr){
+    Serial.println("entrou no stop");
+    stepper->stopMove();
+    compositionMode=false;  
+    mp3.stop();
+    compositionFile.close();
+    compositionTimestamp = 0;
+    currentCompBright = 0;
+    compositionMusicStartTime = 0;
+}
+
+void pauseCompositionCallback(void *ptr){
+  compositionPaused = true;
+  mp3.pause();
+}
+
 void playCompositionCallback(void *ptr){
-  //compositionMode = true;
-  compositionFile = SD.open("/1.txt", "r");
-  compositionMusicStartTime = millis()/1000;
-  pixels.setBrightness(5);
-  //pixels.show();
-  char program[10];
-  selectedProgram.getText(program,10);
-  //String teste = String(program);
-  String file_name = "/" + String(program) + ".txt";
-  Serial.println(String(program));
+  if(compositionPaused){
+    compositionPaused=false;
+    compositionMusicStartTime += compositionTimePaused;
+    compositionTimePaused = 0;
+    mp3.play();
+  }else{
+    //compositionMode = true;
+    pixels.setBrightness(5);
+    //pixels.show();
+    uint32_t program;
+    //char program[10];
+    selectedProgram.getValue(&program);
+    program++;
+    //String teste = String(program);
+    mp3.wakeup();
+    mp3.play(program);
+    String file_name = "/" + String(program) + ".txt";
+    //mp3.qTTracks();
+    //String music_name = mp3.decodeMP3Answer();
+    //String file_name = String(program);
+
+    //Serial.println(music_name);
+    compositionFile = SD.open(file_name, "r");
+    compositionMusicStartTime = millis()/1000;
+    compositionTimestamp = compositionFile.readStringUntil(',').toInt();
+
+    compositionMode = true;
+    /*int count= f.readStringUntil('\r\n').toInt();
+    Serial.println("count: " + count);*/
+  }
   
-  compositionTimestamp = compositionFile.readStringUntil(',').toInt();
-  //mp3.play();
-  /*int count= f.readStringUntil('\r\n').toInt();
-  Serial.println("count: " + count);*/
 }
 
 void applyCompositionChanges(int dimmer, String wave, String color){
@@ -868,6 +904,7 @@ void applyCompositionChanges(int dimmer, String wave, String color){
       stepper->stopMove();
       compositionMode=false;
       mp3.stop();
+      compositionFile.close();
       while(currentCompBright!=0){
         currentCompBright=currentCompBright-5;
         Serial.println(currentCompBright);
@@ -972,6 +1009,8 @@ void setup() {
   updateButton.attachPop(updateCallback);
   downloadButton.attachPop(downloadMusicsCallback);
   playCompositionButton.attachPop(playCompositionCallback);
+  pauseCompositionButton.attachPop(pauseCompositionCallback);
+  stopCompositionButton.attachPop(stopCompositionCallback);
   //selectedProgram.attachPop(changeSelectedProgramCallback);
   //END
 
@@ -1180,9 +1219,11 @@ void loop(){
       
     //for(int i = 0; i < count;){
       //mp3.play();
-      
+      if(compositionPaused){
+        compositionTimePaused = millis()/100;
+      }
       float currentTime = millis()/1000;
-      if(currentCompBright>compositionDimmer){
+      if((currentCompBright>compositionDimmer) && !compositionPaused){
         
         currentCompBright=currentCompBright-5;
         Serial.println(currentCompBright);
@@ -1190,7 +1231,7 @@ void loop(){
         pixels.show();
         
       }
-      if(currentCompBright<compositionDimmer){
+      if((currentCompBright<compositionDimmer) && !compositionPaused){
         Serial.println(currentCompBright);
         currentCompBright=currentCompBright+5;
         pixels.setBrightness(currentCompBright);
@@ -1205,7 +1246,7 @@ void loop(){
         pixels.setBrightness(lastCompositionDimmer*fader);
         pixels.show();
       }*/
-      if(compositionTimestamp<(currentTime-compositionMusicStartTime)){
+      if((compositionTimestamp<(currentTime-compositionMusicStartTime)) && !compositionPaused){
         Serial.println("currentTime: " + String(currentTime) + "   compositionMusicStartTime: " + compositionMusicStartTime);
         lastCompositionDimmer=compositionDimmer;
         String wave = compositionFile.readStringUntil(',');
