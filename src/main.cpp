@@ -152,13 +152,13 @@ NexButton updateButton = NexButton(5,5,"b3");
 
 NexButton downloadButton = NexButton(4,2,"b0");
 NexButton playCompositionButton = NexButton(4,3,"b1");
-NexButton pauseCompositionButton = NexButton(4,7,"b2");
-NexButton stopCompositionButton = NexButton(4,8,"b3");
+//NexButton pauseCompositionButton = NexButton(4,7,"b2");
+NexButton stopCompositionButton = NexButton(4,7,"b3");
 
 NexVariable selectedProgram = NexVariable(4,6,"va0");
 
  
-NexTouch *nex_listen_list[] = {&selectedProgram, &stopCompositionButton, &pauseCompositionButton, &playCompositionButton, &downloadButton, &updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
+NexTouch *nex_listen_list[] = {&selectedProgram, &stopCompositionButton, &playCompositionButton, &downloadButton, &updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
 
 
 //dimmerLamp dimmer(triacpin, zcpin);
@@ -867,10 +867,10 @@ void playCompositionCallback(void *ptr){
 
 void applyCompositionChanges(int dimmer, String wave, String color){
     color.trim();
-    Serial.print(color);
-    pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
+    //Serial.print(color);
+    //pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
     if(color.equals("white")){
-      Serial.println("ENTROU");
+      //Serial.println("ENTROU");
       pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
     }else if(color.equals("red")){
       pixels.fill(pixels.Color(255,0,0,0),0,NUM_LEDS);
@@ -1009,7 +1009,7 @@ void setup() {
   updateButton.attachPop(updateCallback);
   downloadButton.attachPop(downloadMusicsCallback);
   playCompositionButton.attachPop(playCompositionCallback);
-  pauseCompositionButton.attachPop(pauseCompositionCallback);
+  //pauseCompositionButton.attachPop(pauseCompositionCallback);
   stopCompositionButton.attachPop(stopCompositionCallback);
   //selectedProgram.attachPop(changeSelectedProgramCallback);
   //END
@@ -1261,7 +1261,7 @@ void loop(){
         Serial.println("color: " + color);
         applyCompositionChanges(compositionDimmer,wave,color);
         //lastCompositionTimestamp = compositionTimestamp;
-        compositionTimestamp = compositionFile.readStringUntil(',').toInt();
+        compositionTimestamp = compositionFile.readStringUntil(',').toInt()-1;
         
         //i++;
       }
