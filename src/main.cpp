@@ -32,11 +32,16 @@ int compositionMusicStartTime;
 int compositionTimestamp = 0;
 boolean compositionMode = false;
 int compositionDimmer;
-float lastCompositionDimmer = 0;
-float lastCompositionTimestamp;
+
 int currentCompBright = 0;
 float compositionTimePaused;
 boolean compositionPaused = false;
+boolean scientificMode = false;
+
+int sciTimestamp1 = 0;
+int sciTimestamp2 = 0;
+float sciWave1 = 0;
+float sciWave2 = 0;
 
 // CONFIGS!!
 // ----------------------------------------------
@@ -838,39 +843,47 @@ void playCompositionCallback(void *ptr){
     compositionTimePaused = 0;
     mp3.play();
   }else{
-    //compositionMode = true;
+    
     pixels.setBrightness(5);
-    //pixels.show();
     uint32_t program = 0;
-    //char program[10];
     selectedProgram.getValue(&program);
     program++;
-    //String teste = String(program);
     mp3.wakeup();
     mp3.play(program);
     String file_name = "/" + String(program) + ".txt";
-    //mp3.qTTracks();
-    //String music_name = mp3.decodeMP3Answer();
-    //String file_name = String(program);
-
-    //Serial.println(music_name);
     compositionFile = SD.open(file_name, "r");
     compositionMusicStartTime = millis()/1000;
-    compositionTimestamp = compositionFile.readStringUntil(',').toInt();
+    String mode = compositionFile.readStringUntil('\n');
+    mode.trim();
+    if(mode == "scientific"){
+      scientificMode=true;
+      sciTimestamp1 = compositionFile.readStringUntil(',').toInt();
+      sciWave1 = compositionFile.readStringUntil(',').toFloat();
+      compositionDimmer = compositionFile.readStringUntil(',').toInt();
+      String color = compositionFile.readStringUntil('\n');
+      applyCompositionChanges(compositionDimmer,"",color);
+      sciTimestamp2 = compositionFile.readStringUntil(',').toInt();
+      sciWave2 = compositionFile.readStringUntil(',').toFloat();
 
+      Serial.println("timestamp1: " + String(sciTimestamp1));
+      Serial.println("timestamp2: " + String(sciTimestamp2));
+      Serial.println("wave1: " + String(sciWave1));
+      Serial.println("wave2: " + String(sciWave2));
+      Serial.println("dimmer: " + String(compositionDimmer));
+      Serial.println("color: " + color);
+    }else if (mode == "normal"){
+      scientificMode=false;
+      compositionTimestamp = compositionFile.readStringUntil(',').toInt();
+    }
+    
     compositionMode = true;
-    /*int count= f.readStringUntil('\r\n').toInt();
-    Serial.println("count: " + count);*/
   }
   
 }
 
 void applyCompositionChanges(int dimmer, String wave, String color){
     color.trim();
-    //Serial.print(color);
-    //pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
     if(color.equals("white")){
-      //Serial.println("ENTROU");
       pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
     }else if(color.equals("red")){
       pixels.fill(pixels.Color(255,0,0,0),0,NUM_LEDS);
@@ -912,11 +925,12 @@ void applyCompositionChanges(int dimmer, String wave, String color){
         pixels.show();
       }
     }
-    
-    //pixels.setBrightness(254*(dimmer/10.0));
     pixels.show();
 }
 
+float strobeToMotorHz(float strobeSpeed){
+  return strobeSpeed*0.1446-0.0418;
+}
 
 void setup() {
   
@@ -1216,20 +1230,13 @@ void loop(){
   nexLoop(nex_listen_list);
   //wm.process();
   if(compositionMode){
-      
-    //for(int i = 0; i < count;){
-      //mp3.play();
-      if(compositionPaused){
-        compositionTimePaused = millis()/100;
-      }
+
       float currentTime = millis()/1000;
       if((currentCompBright>compositionDimmer) && !compositionPaused){
-        
         currentCompBright=currentCompBright-5;
         Serial.println(currentCompBright);
         pixels.setBrightness(currentCompBright);
         pixels.show();
-        
       }
       if((currentCompBright<compositionDimmer) && !compositionPaused){
         Serial.println(currentCompBright);
@@ -1237,18 +1244,29 @@ void loop(){
         pixels.setBrightness(currentCompBright);
         pixels.show();
       }
-      /*if(compositionDimmer == -1){
-        //Serial.println("no fader");
-        float fader = (compositionTimestamp-(currentTime-compositionMusicStartTime))/(compositionTimestamp-lastCompositionTimestamp);
-        Serial.println((compositionTimestamp-(currentTime-(compositionMusicStartTime+lastCompositionTimestamp))));
-        Serial.println((compositionTimestamp-lastCompositionTimestamp));
-        Serial.println(fader);
-        pixels.setBrightness(lastCompositionDimmer*fader);
-        pixels.show();
-      }*/
-      if((compositionTimestamp<(currentTime-compositionMusicStartTime)) && !compositionPaused){
+      if(scientificMode){
+        if(sciWave2 == -1){
+          sciWave1=0;
+          sciWave2=0;
+          sciTimestamp1=0;
+          sciTimestamp2=0;
+          scientificMode=false;
+          compositionMode=false;
+        }else{
+          float speedDifferece = sciWave2 - sciWave1;
+          int timeDifference = sciTimestamp2 - sciTimestamp1;
+          int currentTime = millis()/1000;
+          float percentage = currentTime/timeDifference;
+          float currentSpeed = sciWave2 - (speedDifferece*percentage);
+          int speedInHz = strobeToMotorHz(currentSpeed)*1600;
+          stepper->setSpeedInHz(speedInHz);
+          stepper->runBackward();
+        }
+      }
+      
+      if((compositionTimestamp<(currentTime-compositionMusicStartTime)) && !scientificMode){
         Serial.println("currentTime: " + String(currentTime) + "   compositionMusicStartTime: " + compositionMusicStartTime);
-        lastCompositionDimmer=compositionDimmer;
+        //lastCompositionDimmer=compositionDimmer;
         String wave = compositionFile.readStringUntil(',');
         compositionDimmer = compositionFile.readStringUntil(',').toFloat();
         compositionDimmer = 255*compositionDimmer/10.0;
@@ -1264,6 +1282,22 @@ void loop(){
         compositionTimestamp = compositionFile.readStringUntil(',').toInt()-1;
         
         //i++;
+      }
+      if((sciTimestamp2<(currentTime-compositionMusicStartTime)) && scientificMode){
+        sciWave1 = sciWave2;
+        sciTimestamp1 = sciTimestamp2;
+        compositionDimmer = compositionFile.readStringUntil(',').toFloat();
+        compositionDimmer = 255*compositionDimmer/10.0;
+        String color = compositionFile.readStringUntil('\n');
+        sciTimestamp2 = compositionFile.readStringUntil(',').toInt();
+        sciWave2 = compositionFile.readStringUntil(',').toFloat();
+
+        Serial.println("timestamp1: " + String(sciTimestamp1));
+        Serial.println("timestamp2: " + String(sciTimestamp2));
+        Serial.println("wave1: " + String(sciWave1));
+        Serial.println("wave2: " + String(sciWave2));
+        Serial.println("dimmer: " + String(compositionDimmer));
+        Serial.println("color: " + color);
       }
     //}
     
