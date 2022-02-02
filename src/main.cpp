@@ -162,8 +162,11 @@ NexButton stopCompositionButton = NexButton(4,7,"b3");
 
 NexVariable selectedProgram = NexVariable(4,6,"va0");
 
+NexButton upVolumeComp = NexButton(4,9,"b4");
+NexButton downVolumeComp = NexButton(4,8,"b2");
+
  
-NexTouch *nex_listen_list[] = {&selectedProgram, &stopCompositionButton, &playCompositionButton, &downloadButton, &updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
+NexTouch *nex_listen_list[] = {&upVolumeComp, &downVolumeComp, &selectedProgram, &stopCompositionButton, &playCompositionButton, &downloadButton, &updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
 
 
 //dimmerLamp dimmer(triacpin, zcpin);
@@ -829,56 +832,18 @@ void stopCompositionCallback(void *ptr){
     compositionTimestamp = 0;
     currentCompBright = 0;
     compositionMusicStartTime = 0;
+
+    sciWave1=0;
+    sciWave2=0;
+    sciTimestamp1=0;
+    sciTimestamp2=0;
+    scientificMode=false;
+    //compositionMode=false;
 }
 
 void pauseCompositionCallback(void *ptr){
   compositionPaused = true;
   mp3.pause();
-}
-
-void playCompositionCallback(void *ptr){
-  if(compositionPaused){
-    compositionPaused=false;
-    compositionMusicStartTime += compositionTimePaused;
-    compositionTimePaused = 0;
-    mp3.play();
-  }else{
-    
-    pixels.setBrightness(5);
-    uint32_t program = 0;
-    selectedProgram.getValue(&program);
-    program++;
-    mp3.wakeup();
-    mp3.play(program);
-    String file_name = "/" + String(program) + ".txt";
-    compositionFile = SD.open(file_name, "r");
-    compositionMusicStartTime = millis()/1000;
-    String mode = compositionFile.readStringUntil('\n');
-    mode.trim();
-    if(mode == "scientific"){
-      scientificMode=true;
-      sciTimestamp1 = compositionFile.readStringUntil(',').toInt();
-      sciWave1 = compositionFile.readStringUntil(',').toFloat();
-      compositionDimmer = compositionFile.readStringUntil(',').toInt();
-      String color = compositionFile.readStringUntil('\n');
-      applyCompositionChanges(compositionDimmer,"",color);
-      sciTimestamp2 = compositionFile.readStringUntil(',').toInt();
-      sciWave2 = compositionFile.readStringUntil(',').toFloat();
-
-      Serial.println("timestamp1: " + String(sciTimestamp1));
-      Serial.println("timestamp2: " + String(sciTimestamp2));
-      Serial.println("wave1: " + String(sciWave1));
-      Serial.println("wave2: " + String(sciWave2));
-      Serial.println("dimmer: " + String(compositionDimmer));
-      Serial.println("color: " + color);
-    }else if (mode == "normal"){
-      scientificMode=false;
-      compositionTimestamp = compositionFile.readStringUntil(',').toInt();
-    }
-    
-    compositionMode = true;
-  }
-  
 }
 
 void applyCompositionChanges(int dimmer, String wave, String color){
@@ -928,6 +893,56 @@ void applyCompositionChanges(int dimmer, String wave, String color){
     pixels.show();
 }
 
+void playCompositionCallback(void *ptr){
+  if(compositionPaused){
+    compositionPaused=false;
+    compositionMusicStartTime += compositionTimePaused;
+    compositionTimePaused = 0;
+    mp3.play();
+  }else{
+    
+    pixels.setBrightness(5);
+    uint32_t program = 0;
+    selectedProgram.getValue(&program);
+    program++;
+    mp3.wakeup();
+    mp3.play(program);
+    mp3.setVol(100);
+    String file_name = "/" + String(program) + ".txt";
+    compositionFile = SD.open(file_name, "r");
+    compositionMusicStartTime = millis()/1000;
+    String mode = compositionFile.readStringUntil('\n');
+    mode.trim();
+    if(mode == "sci"){
+      Serial.println("Entered Scientific Mode");
+      scientificMode=true;
+      sciTimestamp1 = compositionFile.readStringUntil(',').toInt();
+      sciWave1 = compositionFile.readStringUntil(',').toFloat();
+      compositionDimmer = compositionFile.readStringUntil(',').toInt();
+      compositionDimmer = 255*compositionDimmer/10.0;
+      String color = compositionFile.readStringUntil('\n');
+      applyCompositionChanges(compositionDimmer,"",color);
+      sciTimestamp2 = compositionFile.readStringUntil(',').toInt();
+      sciWave2 = compositionFile.readStringUntil(',').toFloat();
+
+      Serial.println("timestamp1: " + String(sciTimestamp1));
+      Serial.println("timestamp2: " + String(sciTimestamp2));
+      Serial.println("wave1: " + String(sciWave1));
+      Serial.println("wave2: " + String(sciWave2));
+      Serial.println("dimmer: " + String(compositionDimmer));
+      Serial.println("color: " + color);
+    }else if (mode == "normal"){
+      scientificMode=false;
+      compositionTimestamp = compositionFile.readStringUntil(',').toInt();
+    }
+    
+    compositionMode = true;
+  }
+  
+}
+
+
+
 float strobeToMotorHz(float strobeSpeed){
   return strobeSpeed*0.1446-0.0418;
 }
@@ -935,7 +950,7 @@ float strobeToMotorHz(float strobeSpeed){
 void setup() {
   
   
-  Serial.begin(115200);
+  //Serial.begin(115200);
   
   //SD CARD CODE
   int count = 0;
@@ -1025,6 +1040,9 @@ void setup() {
   playCompositionButton.attachPop(playCompositionCallback);
   //pauseCompositionButton.attachPop(pauseCompositionCallback);
   stopCompositionButton.attachPop(stopCompositionCallback);
+
+  upVolumeComp.attachPop(upNextionCallback);
+  downVolumeComp.attachPop(downNextionCallback);
   //selectedProgram.attachPop(changeSelectedProgramCallback);
   //END
 
@@ -1232,6 +1250,7 @@ void loop(){
   if(compositionMode){
 
       float currentTime = millis()/1000;
+      //Serial.println("currentCompBright: " + String(currentCompBright) + " compositionDimmer: " + String(compositionDimmer));
       if((currentCompBright>compositionDimmer) && !compositionPaused){
         currentCompBright=currentCompBright-5;
         Serial.println(currentCompBright);
@@ -1252,13 +1271,22 @@ void loop(){
           sciTimestamp2=0;
           scientificMode=false;
           compositionMode=false;
+          stepper->stopMove();
+          mp3.stop();
+          compositionFile.close();
+          Serial2.print("tsw b5,1");
+          Serial2.print("\xFF\xFF\xFF");
+          Serial2.print("tsw b6,1");
+          Serial2.print("\xFF\xFF\xFF");
         }else{
           float speedDifferece = sciWave2 - sciWave1;
-          int timeDifference = sciTimestamp2 - sciTimestamp1;
-          int currentTime = millis()/1000;
-          float percentage = currentTime/timeDifference;
-          float currentSpeed = sciWave2 - (speedDifferece*percentage);
+          float timeDifference = sciTimestamp2 - sciTimestamp1;
+          float sciCurrentTime = millis()/1000 - compositionMusicStartTime - sciTimestamp1;
+          float percentage = sciCurrentTime/timeDifference;
+          Serial.println("percentage: " + String(percentage));
+          float currentSpeed = sciWave1 + (speedDifferece*percentage);
           int speedInHz = strobeToMotorHz(currentSpeed)*1600;
+          Serial.println(speedInHz);
           stepper->setSpeedInHz(speedInHz);
           stepper->runBackward();
         }
@@ -1283,6 +1311,8 @@ void loop(){
         
         //i++;
       }
+      //Serial.println("sciTimestamp2: " + String(sciTimestamp2));
+      //Serial.println("elapsed: " + String(currentTime-compositionMusicStartTime));
       if((sciTimestamp2<(currentTime-compositionMusicStartTime)) && scientificMode){
         sciWave1 = sciWave2;
         sciTimestamp1 = sciTimestamp2;
