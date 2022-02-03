@@ -116,7 +116,7 @@ int currentVolume = 60;
 SerialMP3Player mp3(mp3RX,mp3TX);
 
 #define dirPinStepper 33
-#define enablePinStepper 35
+#define enablePinStepper 34
 #define stepPinStepper 32
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
