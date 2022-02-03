@@ -116,7 +116,7 @@ int currentVolume = 60;
 SerialMP3Player mp3(mp3RX,mp3TX);
 
 #define dirPinStepper 33
-#define enablePinStepper 34
+#define enablePinStepper 35
 #define stepPinStepper 32
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
@@ -224,7 +224,7 @@ const IPAddress outIP(192,168,4,255);
 char serverSSID[20];
 WiFiManager wm;
 #define AP 1
-boolean WIFI_MODE = !AP;
+boolean WIFI_MODE = AP;
 //WiFiUDP Udp;
 
 void whiteNextionCallback(void *ptr){
@@ -1091,6 +1091,7 @@ void setup() {
   }else{
     WiFi.mode(WIFI_STA); 
     wm.setConfigPortalBlocking(true);
+    wm.resetSettings();
     if(!wm.autoConnect("DreamMachine - Network Selection")){
       Serial.println("Failed to connect");
     }
