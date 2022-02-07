@@ -111,8 +111,8 @@ Adafruit_NeoPixel pixels(NUM_LEDS, NEO_PIN, NEO_GRBW + NEO_KHZ800);
 #define mp3RX 13
 #define mp3TX 0
 #define NO_SERIALMP3_DELAY
-int currentVolume = 60;
-#define MAX_VOLUME 100;
+int currentVolume = 25;
+#define MAX_VOLUME 25;
 SerialMP3Player mp3(mp3RX,mp3TX);
 
 #define dirPinStepper 33
@@ -477,8 +477,8 @@ void nextNextionCallback(void *ptr){
 }
 void upNextionCallback(void *ptr){
   Serial.println("UP VOLUME");
-  if(currentVolume!=100){
-    currentVolume+=20;
+  if(currentVolume!=25){
+    currentVolume+=5;
     mp3.setVol(currentVolume);
     mp3.qVol();
   }
@@ -486,7 +486,7 @@ void upNextionCallback(void *ptr){
 void downNextionCallback(void *ptr){
   Serial.println("DOWN VOLUME");
   if(currentVolume!=0){
-    currentVolume-=20;
+    currentVolume-=5;
     mp3.setVol(currentVolume);
     mp3.qVol();
   }
@@ -496,8 +496,8 @@ void upCallback(OSCMessage &msg){
     int value = msg.getFloat(0);
     if(value == 1.){
       Serial.println("UP VOLUME");
-      if(currentVolume!=100){
-        currentVolume+=20;
+      if(currentVolume!=25){
+        currentVolume+=5;
         mp3.setVol(currentVolume);
         mp3.qVol();
       }
@@ -510,7 +510,7 @@ void downCallback(OSCMessage &msg){
     if(value == 1.){
       Serial.println("DOWN VOLUME");
       if(currentVolume!=0){
-        currentVolume-=20;
+        currentVolume-=5;
         mp3.setVol(currentVolume);
         mp3.qVol();
       }
@@ -907,7 +907,7 @@ void playCompositionCallback(void *ptr){
     program++;
     mp3.wakeup();
     mp3.play(program);
-    mp3.setVol(100);
+    mp3.setVol(25);
     String file_name = "/" + String(program) + ".txt";
     compositionFile = SD.open(file_name, "r");
     compositionMusicStartTime = millis()/1000;
