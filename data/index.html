@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DreamMachine Web Server</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+  <h1>DreamMachine Web Server</h1>
+  <p>Upload your composition files here:</p>
+  <form method="POST" action="/upload" enctype="multipart/form-data">
+  <input type="file" id="myFiles" name="filename" multiple>
+  <input type="submit" value="Submit">
+	</form>
+</body>
+</html>

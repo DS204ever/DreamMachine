@@ -9,6 +9,9 @@
 <body>
   <h1>DreamMachine Web Server</h1>
   <p>Upload your composition files here:</p>
-  <p><a href="/upload"><button class="button">UPLOAD</button></a></p>
+  <form method="POST" action="/upload" enctype="multipart/form-data">
+  <input type="file" id="myFile" name="filename">
+  <input type="submit" value="Submit">
+	</form>
 </body>
 </html>

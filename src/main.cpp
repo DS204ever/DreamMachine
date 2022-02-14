@@ -13,6 +13,13 @@
 #include <SD.h>
 #include <SoftwareSerial.h>
 #include <SPI.h>
+#include "WiFi.h"
+#include "ESPAsyncWebServer.h"
+#include "SPIFFS.h"
+#include <DNSServer.h>  
+
+AsyncWebServer asyncServer(80);
+
 
 #define A1 100
 #define A2 100
@@ -37,6 +44,8 @@ float lastCompositionTimestamp;
 int currentCompBright = 0;
 float compositionTimePaused;
 boolean compositionPaused = false;
+String compositionFileName;
+int compositionFileNumber = 1;
 
 // CONFIGS!!
 // ----------------------------------------------
@@ -106,8 +115,8 @@ Adafruit_NeoPixel pixels(NUM_LEDS, NEO_PIN, NEO_GRBW + NEO_KHZ800);
 #define mp3RX 13
 #define mp3TX 0
 #define NO_SERIALMP3_DELAY
-int currentVolume = 60;
-#define MAX_VOLUME 100;
+int currentVolume = 20;
+#define MAX_VOLUME 25;
 SerialMP3Player mp3(mp3RX,mp3TX);
 
 #define dirPinStepper 33
@@ -127,6 +136,28 @@ EasyButton button4(14,35,true,false);*/
 
 
 
+
+
+
+NexDSButton bt0 = NexDSButton(2,3,"bt0");
+NexDSButton bt1 = NexDSButton(2,4,"bt1");
+NexDSButton bt2 = NexDSButton(2,5,"bt2");
+NexDSButton bt3 = NexDSButton(2,6,"bt3");
+NexDSButton bt4 = NexDSButton(2,7,"bt4");
+
+
+NexDSButton whiteButton = NexDSButton(2,19,"bt9");
+NexDSButton pinkButton = NexDSButton(2,16,"bt3");
+NexDSButton purpleButton = NexDSButton(2,17,"bt4");
+NexDSButton orangeButton = NexDSButton(2,18,"bt5");
+NexDSButton redButton = NexDSButton(2,20,"bt2");
+NexDSButton blueButton = NexDSButton(2,21,"bt6");
+NexDSButton greenButton = NexDSButton(2,22,"bt7");
+NexDSButton yellowButton = NexDSButton(2,23,"bt8");
+NexDSButton decorButton = NexDSButton(2,24,"bt5");
+
+NexSlider dimmerSlider = NexSlider(2,1,"h2");
+
 NexButton ppButton = NexButton(3,1,"b0");
 NexButton nextButton = NexButton(3,3,"b1");
 NexButton previousButton = NexButton(3,2,"b2");
@@ -134,31 +165,73 @@ NexButton upButton = NexButton(3,5,"b3");
 NexButton downButton = NexButton(3,4,"b4");
 
 
-NexDSButton bt0 = NexDSButton(2,6,"bt0");
-NexDSButton bt1 = NexDSButton(2,7,"bt1");
-NexDSButton bt2 = NexDSButton(2,8,"bt2");
-NexDSButton bt3 = NexDSButton(2,9,"bt3");
-NexDSButton bt4 = NexDSButton(2,10,"bt4");
+NexButton downloadButton = NexButton(4,23,"b6");
+NexButton playCompositionButton = NexButton(4,21,"b1");
+NexButton upButtonComp = NexButton(4,25,"b2");
+NexButton downButtonComp = NexButton(4,24,"b0");
+NexButton stopCompositionButton = NexButton(4,22,"b7");
 
-NexSlider speedSlider = NexSlider(2,1,"h0");
-NexSlider colorSlider = NexSlider(2,3,"h1");
-NexSlider dimmerSlider = NexSlider(2,4,"h2");
+NexDSButton comp1 = NexDSButton(4,3,"bt0");
+NexDSButton comp2 = NexDSButton(4,4,"bt1");
+NexDSButton comp3 = NexDSButton(4,5,"bt2");
+NexDSButton comp4 = NexDSButton(4,6,"bt3");
+NexDSButton comp5 = NexDSButton(4,7,"bt4");
+NexDSButton comp6 = NexDSButton(4,8,"bt5");
+NexDSButton comp7 = NexDSButton(4,9,"bt6");
+NexDSButton comp8 = NexDSButton(4,10,"bt7");
+NexDSButton comp9 = NexDSButton(4,11,"bt8");
+NexDSButton comp10 = NexDSButton(4,12,"bt9");
+NexDSButton comp11 = NexDSButton(4,13,"bt10");
+NexDSButton comp12 = NexDSButton(4,14,"bt11");
+NexDSButton comp13 = NexDSButton(4,15,"bt12");
+NexDSButton comp14 = NexDSButton(4,16,"bt13");
+NexDSButton comp15 = NexDSButton(4,17,"bt14");
 
-NexButton coldWhite = NexButton(5,1,"b0");
-NexButton pureWhite = NexButton(5,2,"b1");
-NexButton warmWhite = NexButton(5,3,"b2");
-NexButton whiteButton = NexButton(2,2,"b2");
-NexButton updateButton = NexButton(5,5,"b3");
-
-NexButton downloadButton = NexButton(4,2,"b0");
-NexButton playCompositionButton = NexButton(4,3,"b1");
-//NexButton pauseCompositionButton = NexButton(4,7,"b2");
-NexButton stopCompositionButton = NexButton(4,7,"b3");
-
-NexVariable selectedProgram = NexVariable(4,6,"va0");
-
+NexButton updateButton = NexButton(5,1,"b3");
  
-NexTouch *nex_listen_list[] = {&selectedProgram, &stopCompositionButton, &playCompositionButton, &downloadButton, &updateButton, &whiteButton, &coldWhite, &pureWhite, &warmWhite, &speedSlider, &colorSlider, &dimmerSlider, &ppButton, &nextButton,&previousButton, &upButton, &downButton, &bt0,&bt1,&bt2,&bt3,&bt4,NULL};
+NexTouch *nex_listen_list[] = {
+  &whiteButton,
+  &pinkButton,
+  &purpleButton,
+  &orangeButton,
+  &redButton,
+  &blueButton,
+  &greenButton,
+  &yellowButton,
+  &decorButton,
+  &stopCompositionButton,
+  &playCompositionButton,
+  &downloadButton,
+  &updateButton,
+  &dimmerSlider,
+  &ppButton,
+  &nextButton,
+  &previousButton,
+  &upButton,
+  &downButton,
+  &bt0,
+  &bt1,
+  &bt2,
+  &bt3,
+  &bt4,
+  &comp1,
+  &comp2,
+  &comp3,
+  &comp4,
+  &comp5,
+  &comp6,
+  &comp7,
+  &comp8,
+  &comp9,
+  &comp10,
+  &comp11,
+  &comp12,
+  &comp13,
+  &comp14,
+  &comp15,
+  &upButtonComp,
+  &downButtonComp,
+  NULL};
 
 
 //dimmerLamp dimmer(triacpin, zcpin);
@@ -216,15 +289,46 @@ const IPAddress outIP(192,168,4,255);
 char serverSSID[20];
 WiFiManager wm;
 #define AP 1
-boolean WIFI_MODE = !AP;
+boolean WIFI_MODE = AP;
 //WiFiUDP Udp;
+void applyCompositionChanges(int dimmer, String wave, String color);
 
 void whiteNextionCallback(void *ptr){
-  Serial.println("White Mode Active");
-  whiteStatus = true;
-  pixels.fill(whiteMode,0,NUM_LEDS);
-  pixels.show();
+  Serial.println("Entered White");
+  applyCompositionChanges(NULL,"","white");
 }
+void pinkNextionCallback(void *ptr){
+  Serial.println("Entered pink");
+  applyCompositionChanges(NULL,"","pink");
+}
+void redNextionCallback(void *ptr){
+  Serial.println("Entered red");
+  applyCompositionChanges(NULL,"","red");
+}
+void greenNextionCallback(void *ptr){
+  Serial.println("Entered green");
+  applyCompositionChanges(NULL,"","green");
+}
+void orangeNextionCallback(void *ptr){
+  Serial.println("Entered orange");
+  applyCompositionChanges(NULL,"","orange");
+}
+void yellowNextionCallback(void *ptr){
+  Serial.println("Entered yellow");
+  applyCompositionChanges(NULL,"","yellow");
+}
+void purpleNextionCallback(void *ptr){
+  Serial.println("Entered purple");
+  applyCompositionChanges(NULL,"","purple");
+}
+void blueNextionCallback(void *ptr){
+  Serial.println("Entered blue");
+  applyCompositionChanges(NULL,"","blue");
+}
+
+
+
+
 void whiteCallback(OSCMessage &msg) { 
   if (msg.isFloat(0)) {
     Serial.println("White Mode Active");
@@ -234,58 +338,8 @@ void whiteCallback(OSCMessage &msg) {
     pixels.show();
   }
 }
-void coldWhiteCallback(void *ptr){
-  Serial.println("Cold White Selected");
-  whiteStatus = true;
-  whiteMode = pixels.Color(255,255,255,0);
-  pixels.fill(whiteMode,0,NUM_LEDS);
-  pixels.show();
-}
-void pureWhiteCallback(void *ptr){
-  Serial.println("Pure White Selected");
-  whiteStatus = true;
-  whiteMode = pixels.Color(255,255,255,255);
-  pixels.fill(whiteMode,0,NUM_LEDS);
-  pixels.show();
-}
-void warmWhiteCallback(void *ptr){
-  Serial.println("Warm White Selected");
-  whiteStatus = true;
-  whiteMode = pixels.Color(0,0,0,255);
-  pixels.fill(whiteMode,0,NUM_LEDS);
-  pixels.show();
-}
 
-void colorNextionCallback(void *ptr){
-  Serial.println("Color was pressed");
-  colorReceived=true;
-  uint32_t number = 0;
-  colorSlider.getValue(&number);
-  newHue = 65535*number/100;
-  OSCMessage msgOUT("/color");
-  float newNumber = newHue/65535.0;
-  msgOUT.add(newNumber);
-  for(int count = 0; count < 10; count++){
-    Udp.beginPacket(outIP, inPort);
-    msgOUT.send(Udp);
-    Udp.endPacket();
-    count++;
-  }
-  msgOUT.empty();
-}
 
-void colorCallback(OSCMessage &msg){
-   if (msg.isFloat(0)){
-    float value = msg.getFloat(0);
-    newHue = value*65535;
-    colorReceived = true;
-    int newValue = value*100;
-    sprintf(buffer, "h1.val=%d", newValue);
-    unsigned long currentMillis = millis();
-    previousMillis = currentMillis;
-    receivingPackets = true;
-  }
-}
 
 void changeBrightness(int newBrightness){
   if(whiteStatus){
@@ -469,8 +523,8 @@ void nextNextionCallback(void *ptr){
 }
 void upNextionCallback(void *ptr){
   Serial.println("UP VOLUME");
-  if(currentVolume!=100){
-    currentVolume+=20;
+  if(currentVolume!=25){
+    currentVolume+=5;
     mp3.setVol(currentVolume);
     mp3.qVol();
   }
@@ -478,7 +532,7 @@ void upNextionCallback(void *ptr){
 void downNextionCallback(void *ptr){
   Serial.println("DOWN VOLUME");
   if(currentVolume!=0){
-    currentVolume-=20;
+    currentVolume-=5;
     mp3.setVol(currentVolume);
     mp3.qVol();
   }
@@ -488,8 +542,8 @@ void upCallback(OSCMessage &msg){
     int value = msg.getFloat(0);
     if(value == 1.){
       Serial.println("UP VOLUME");
-      if(currentVolume!=100){
-        currentVolume+=20;
+      if(currentVolume!=25){
+        currentVolume+=5;
         mp3.setVol(currentVolume);
         mp3.qVol();
       }
@@ -502,7 +556,7 @@ void downCallback(OSCMessage &msg){
     if(value == 1.){
       Serial.println("DOWN VOLUME");
       if(currentVolume!=0){
-        currentVolume-=20;
+        currentVolume-=5;
         mp3.setVol(currentVolume);
         mp3.qVol();
       }
@@ -574,94 +628,24 @@ void sendSerial2(){
     Serial2.print("\xFF\xFF\xFF");
   }
 }
-void speedNextionCallback(void *ptr){
-  Serial.println("Speed Slider was pressed.");
-  uint32_t number = 0;
-  speedSlider.getValue(&number);
-  int sliderSpeed = number*F4/100;
-  if(number==0){
-    stepper->stopMove();
+void decorNextionCallback(void *ptr){
+    Serial.println("Decor");
+    //currentSpeed = 0;
+    stepper->setAcceleration(A1);
+    stepper->setSpeedInHz(160);
     updateMyButtons(0);
     sendSerial2();
     unlockButtons();
-  }
-  else if((sliderSpeed > (F1-50)) && (sliderSpeed < (F1+50))){
-    stepper->setAcceleration(A1);
-    stepper->setSpeedInHz(sliderSpeed);
-    stepper->runBackward();
-    updateMyButtons(1);
-    sendSerial2();
-    unlockButtons();
-  }
-  else if((sliderSpeed > (F2-50)) && (sliderSpeed < (F2+50))){
-    stepper->setAcceleration(A2);
-    stepper->setSpeedInHz(sliderSpeed);
-    stepper->runBackward();
-    updateMyButtons(2);
-    sendSerial2();
-    unlockButtons();
-  }
-  else if((sliderSpeed > (F3-50)) && (sliderSpeed < (F3+50))){
-    stepper->setAcceleration(A1);
-    stepper->setSpeedInHz(sliderSpeed);
-    stepper->runBackward();
-    updateMyButtons(3);
-    sendSerial2();
-    unlockButtons();
-  }
-  else if((sliderSpeed > (F4-100)) && (sliderSpeed < (F4))){
-    stepper->setAcceleration(A1);
-    stepper->setSpeedInHz(sliderSpeed);
-    stepper->runBackward();
-    updateMyButtons(4);
-    sendSerial2();
-    unlockButtons();
-  }
 }
-
-void sliderCallback(OSCMessage &msg){
-  if (msg.isFloat(0)) {
-    float value = msg.getFloat(0);
-    int sliderSpeed = value*F4;
-    if(value==0){
-      Serial.println("Entrou");
-      stepper->stopMove();
+void decorCallback(OSCMessage &msg){
+  if(msg.isFloat(0) && (msg.getFloat(0) == 1.)){
+      Serial.println("Decor");
+      //currentSpeed = 0;
+      stepper->setAcceleration(A1);
+      stepper->setSpeedInHz(160);
       updateMyButtons(0);
       sendSerial2();
       unlockButtons();
-    }
-    else if((sliderSpeed > (F1-50)) && (sliderSpeed < (F1+50))){
-    stepper->setAcceleration(A1);
-    stepper->setSpeedInHz(sliderSpeed);
-    stepper->runBackward();
-    updateMyButtons(1);
-    sendSerial2();
-    unlockButtons();
-    }
-    else if((sliderSpeed > (F2-50)) && (sliderSpeed < (F2+50))){
-      stepper->setAcceleration(A2);
-      stepper->setSpeedInHz(sliderSpeed);
-      stepper->runBackward();
-      updateMyButtons(2);
-      sendSerial2();
-      unlockButtons();
-    }
-    else if((sliderSpeed > (F3-50)) && (sliderSpeed < (F3+50))){
-      stepper->setAcceleration(A1);
-      stepper->setSpeedInHz(sliderSpeed);
-      stepper->runBackward();
-      updateMyButtons(3);
-      sendSerial2();
-      unlockButtons();
-    }
-    else if((sliderSpeed > (F4-100)) && (sliderSpeed < (F4))){
-      stepper->setAcceleration(A1);
-      stepper->setSpeedInHz(sliderSpeed);
-      stepper->runBackward();
-      updateMyButtons(4);
-      sendSerial2();
-      unlockButtons();
-    }
   }
 }
 
@@ -743,76 +727,68 @@ void multi1Callback(OSCMessage &msg) {
     }
   }
 }
+void comp1Callback(void *ptr){
+  compositionFileNumber=1;
+}
+void comp2Callback(void *ptr){
+  compositionFileNumber=2;
+}
+void comp3Callback(void *ptr){
+  compositionFileNumber=3;
+}
+void comp4Callback(void *ptr){
+  compositionFileNumber=4;
+}
+void comp5Callback(void *ptr){
+  compositionFileNumber=5;
+}
+void comp6Callback(void *ptr){
+  compositionFileNumber=6;
+}
+void comp7Callback(void *ptr){
+  compositionFileNumber=7;
+}
+void comp8Callback(void *ptr){
+  compositionFileNumber=8;
+}
+void comp9Callback(void *ptr){
+  compositionFileNumber=9;
+}
+void comp10Callback(void *ptr){
+  compositionFileNumber=10;
+}
+void comp11Callback(void *ptr){
+  compositionFileNumber=11;
+}
+void comp12Callback(void *ptr){
+  compositionFileNumber=12;
+}
+void comp13Callback(void *ptr){
+  compositionFileNumber=13;
+}
+void comp14Callback(void *ptr){
+  compositionFileNumber=14;
+}
+void comp15Callback(void *ptr){
+  compositionFileNumber=15;
+}
+
 void updateCallback(void *ptr){
   Serial.println("Update Initialized");
   server.stop();
+  
   Udp.stop();
   WiFi.disconnect();
   //wm.resetSettings();
   WiFi.mode(WIFI_STA); 
   wm.setConfigPortalBlocking(true);
-  if(!wm.autoConnect("DreamMachineUpdater")) {
-      Serial.println("Failed to connect");
-  } 
-  else { 
-      Serial.println("Connected.");
-  }
-  if ((WiFi.status() == WL_CONNECTED)) {
-  WiFiClient client;
-  t_httpUpdate_return ret = httpUpdate.update(client, "http://sousadreammachine.duckdns.org:8123/firmware.bin");
-  switch (ret) {
-    case HTTP_UPDATE_FAILED:
-      Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-      break;
-
-    case HTTP_UPDATE_NO_UPDATES:
-      Serial.println("HTTP_UPDATE_NO_UPDATES");
-      break;
-
-    case HTTP_UPDATE_OK:
-      Serial.println("HTTP_UPDATE_OK");
-      break;
-    }
-  }
+  wm.resetSettings();
+  WiFi.begin();
+  
 }
 void downloadMusicsCallback(void *ptr){
-  Serial.println("Entered");
-  HTTPClient http;
-  if(WIFI_MODE==AP){
-    Serial.println("Changing WIFI MODE");
-    server.stop();
-    Udp.stop();
-    WiFi.disconnect();
-    
-    WiFi.mode(WIFI_STA); 
-    wm.setConfigPortalBlocking(true);
-    if(!wm.autoConnect("DreamMachineDownloader")) {
-        Serial.println("Failed to connect");
-    } 
-    else { 
-        Serial.println("Connected.");
-    }
-  }else{
-    Serial.println("WIFI MODE CORRECT");
-  }
-  if(WiFi.status() == WL_CONNECTED){
-    for (int i = 1; i <= 20; i++)
-    {
-      String file_name = String("/" + String(i) + ".txt");
-      Serial.println(file_name);
-      http.begin("http://sousadreammachine.duckdns.org:8123"+file_name);
-      if(http.GET()==HTTP_CODE_OK){
-        SD.remove(file_name);
-        File f = SD.open(file_name,"w");
-        http.writeToStream(&f);
-        f.close();
-      }
-      else{
-        Serial.println("File " + file_name + " not found.");
-      }
-      http.end();
-    }
-  }
+  Serial.println("entrou no download");
+  asyncServer.begin();
 }
 
 void stopCompositionCallback(void *ptr){
@@ -841,26 +817,33 @@ void playCompositionCallback(void *ptr){
     //compositionMode = true;
     pixels.setBrightness(5);
     //pixels.show();
-    uint32_t program = 0;
+    
     //char program[10];
-    selectedProgram.getValue(&program);
-    program++;
+    
     //String teste = String(program);
-    mp3.wakeup();
-    mp3.play(program);
-    String file_name = "/" + String(program) + ".txt";
-    //mp3.qTTracks();
-    //String music_name = mp3.decodeMP3Answer();
-    //String file_name = String(program);
+    
+    compositionFileName = "/" + String(compositionFileNumber) + ".txt";
+    compositionFile = SPIFFS.open(compositionFileName, "r");
+    if(compositionFile.available()){
+      mp3.wakeup();
+      mp3.play(compositionFileNumber);
+      Serial.println(compositionFileName);
+      //mp3.qTTracks();
+      //String music_name = mp3.decodeMP3Answer();
+      //String file_name = String(program);
 
-    //Serial.println(music_name);
-    compositionFile = SD.open(file_name, "r");
-    compositionMusicStartTime = millis()/1000;
-    compositionTimestamp = compositionFile.readStringUntil(',').toInt();
+      //Serial.println(music_name);
+      
+      compositionMusicStartTime = millis()/1000;
+      compositionTimestamp = compositionFile.readStringUntil(',').toInt();
 
-    compositionMode = true;
-    /*int count= f.readStringUntil('\r\n').toInt();
-    Serial.println("count: " + count);*/
+      compositionMode = true;
+      /*int count= f.readStringUntil('\r\n').toInt();
+      Serial.println("count: " + count);*/
+    }else{
+      Serial.println("File doesnt exist");
+    }
+    
   }
   
 }
@@ -870,9 +853,10 @@ void applyCompositionChanges(int dimmer, String wave, String color){
     //Serial.print(color);
     //pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
     if(color.equals("white")){
-      //Serial.println("ENTROU");
+      //Serial.println("ENTROU white");
       pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
     }else if(color.equals("red")){
+      //Serial.println("ENTROU red");
       pixels.fill(pixels.Color(255,0,0,0),0,NUM_LEDS);
     }else if(color.equals("blue")){
       pixels.fill(pixels.Color(0,0,255,0),0,NUM_LEDS);
@@ -916,7 +900,76 @@ void applyCompositionChanges(int dimmer, String wave, String color){
     //pixels.setBrightness(254*(dimmer/10.0));
     pixels.show();
 }
+void compositionCallbackOSC(OSCMessage &msg, int addressOffset){
+  if(msg.getFloat(0)==1.){
+    char buffer[3];
+    int line, column;
+    msg.getAddress(buffer,7);
+    sscanf(buffer, "%d/%d", &column, &line);
+    compositionFileNumber=0;
+    if(column == 1){
+      compositionFileNumber = line;
+    }else if(column == 2){
+      compositionFileNumber = line+5;
+    }else if(column == 3){
+      compositionFileNumber = line+10;
+    }
+    
+    Serial.println(compositionFileNumber);
+  }
+  
+}
 
+void playCompositionCallbackOSC(OSCMessage &msg){
+  if(msg.isFloat(0) && (msg.getFloat(0) == 1.)){
+    playCompositionCallback(NULL);
+  }
+}
+
+void stopCompositionCallbackOSC(OSCMessage &msg){
+  if(msg.isFloat(0) && (msg.getFloat(0) == 1.)){
+    stopCompositionCallback(NULL);
+  }
+}
+
+void colorsCallbackOSC(OSCMessage &msg, int addressOffset){
+  if(msg.getFloat(0)==1.){
+    char buffer[6];
+    String color;
+    msg.getAddress(buffer,8);
+    //Serial.println(buffer);
+    //sscanf(buffer, "%s", &color);
+    applyCompositionChanges(NULL,"",buffer);
+    Serial.println(buffer);
+  }
+  
+}
+void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+  String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
+  Serial.println(logmessage);
+
+  if (!index) {
+    logmessage = "Upload Start: " + String(filename);
+    // open the file on first call and store the file handle in the request object
+    request->_tempFile = SPIFFS.open("/" + filename, "w");
+    Serial.println(logmessage);
+  }
+
+  if (len) {
+    // stream the incoming chunk to the opened file
+    request->_tempFile.write(data, len);
+    logmessage = "Writing file: " + String(filename) + " index=" + String(index) + " len=" + String(len);
+    Serial.println(logmessage);
+  }
+
+  if (final) {
+    logmessage = "Upload Complete: " + String(filename) + ",size: " + String(index + len);
+    // close the file handle as the upload is now done
+    request->_tempFile.close();
+    Serial.println(logmessage);
+    request->redirect("/");
+  }
+}
 
 void setup() {
   
@@ -925,34 +978,25 @@ void setup() {
   
   //SD CARD CODE
   int count = 0;
-  while(!SD.begin(4)||count!=10){
-    count++;
-    //Serial.println("Error initializing SD CARD.");
-    delay(250);
+  if(!SPIFFS.begin(true)){
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
   }
-  String comboBoxValues = "page6.cb0.path=\"";
+  //String comboBoxValues = "page6.cb0.path=\"";
   //String comboBoxValues = "cb0.path=";
-  if(SD.begin(4)){
-    Serial.println("SD CARD Initialized.");
-    
-    for (int i = 1; i <= 20; i++)
-    {
-      String file_name = String("/" + String(i) + ".txt");
-      File f = SD.open(file_name, "r");
-      if(f){
-        comboBoxValues.concat(String(i) + "\\" + "r");
-        //String s = f.readString();
-        //Serial.println("s: " + s);
-      }
-      f.close();
-      
+  
+  Serial.println("SPIFFS Initialized.");
+  
+  for (int i = 1; i <= 15; i++)
+  {
+    String file_name = String("/" + String(i) + ".txt");
+    File f = SPIFFS.open(file_name, "r");
+    if(!f.available()){
+      Serial.println(file_name + " not found");
     }
-    comboBoxValues.concat("\"");
-    
-    
-  }else{
-    Serial.println("Card couldn't be initialized");
+    f.close();
   }
+  
   
   
   //END
@@ -977,11 +1021,11 @@ void setup() {
   //NEXTION CODE
   
   nexInit();
-  SD.begin(4);
+  /*SD.begin(4);
   File f = SD.open("/1.txt", "r");
   String s = f.readString();
   Serial.println("s: " + s);
-  f.close();
+  f.close();*/
 
   bt0.attachPop(bt0PopCallback, &bt0);
   bt1.attachPop(bt1PopCallback, &bt1);
@@ -993,18 +1037,41 @@ void setup() {
   nextButton.attachPop(nextNextionCallback, &nextButton);
   upButton.attachPop(upNextionCallback, &upButton);
   downButton.attachPop(downNextionCallback, &downButton);
+  upButtonComp.attachPop(upNextionCallback);
+  downButtonComp.attachPop(downNextionCallback);
   
   dimmerSlider.attachPop(dimmerNextionCallback);
   dimmerSlider.attachPush(dimmerNextionCallback);
-  colorSlider.attachPop(colorNextionCallback);
-  colorSlider.attachPush(colorNextionCallback);
-  speedSlider.attachPop(speedNextionCallback);
-  speedSlider.attachPush(speedNextionCallback);
+  //speedSlider.attachPop(speedNextionCallback);
+  //speedSlider.attachPush(speedNextionCallback);
   
-  coldWhite.attachPop(coldWhiteCallback);
-  pureWhite.attachPop(pureWhiteCallback);
-  warmWhite.attachPop(warmWhiteCallback);
   whiteButton.attachPop(whiteNextionCallback);
+  pinkButton.attachPop(pinkNextionCallback);
+  purpleButton.attachPop(purpleNextionCallback);
+  redButton.attachPop(redNextionCallback);
+  greenButton.attachPop(greenNextionCallback);
+  yellowButton.attachPop(yellowNextionCallback);
+  orangeButton.attachPop(orangeNextionCallback);
+  blueButton.attachPop(blueNextionCallback);
+
+  decorButton.attachPop(decorNextionCallback);
+
+  comp1.attachPop(comp1Callback);
+  comp2.attachPop(comp2Callback);
+  comp3.attachPop(comp3Callback);
+  comp4.attachPop(comp4Callback);
+  comp5.attachPop(comp5Callback);
+  comp6.attachPop(comp6Callback);
+  comp7.attachPop(comp7Callback);
+  comp8.attachPop(comp8Callback);
+  comp9.attachPop(comp9Callback);
+  comp10.attachPop(comp10Callback);
+  comp11.attachPop(comp11Callback);
+  comp12.attachPop(comp12Callback);
+  comp13.attachPop(comp13Callback);
+  comp14.attachPop(comp14Callback);
+  comp15.attachPop(comp15Callback);
+
 
   updateButton.attachPop(updateCallback);
   downloadButton.attachPop(downloadMusicsCallback);
@@ -1049,6 +1116,7 @@ void setup() {
       }
     }
     Serial.println("Setting AP (Access Point)…");
+    WiFi.mode(WIFI_AP);
     WiFi.softAP(serverSSID);
     Serial.println("Setup Successful.");
     Serial.print("Initialized as ");
@@ -1079,7 +1147,7 @@ void setup() {
 
 
   Udp.begin(inPort);
-  server.begin();
+  //server.begin();
   //END
 
   /*pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
@@ -1107,19 +1175,32 @@ void setup() {
   pixels.fill(pixels.Color(0,0,0,255),0,NUM_LEDS);
   pixels.show();*/
   //delay(1000);
-  Serial.println("teste");
+  /*Serial.println("teste");
   Serial.println(comboBoxValues);
   Serial.println(comboBoxValues);
-  Serial.println(comboBoxValues);
+  Serial.println(comboBoxValues);*/
   
   //Serial2.print("page6.cb0.path=\"1\r\"");
   
-  Serial2.print(comboBoxValues);
-  Serial2.print("\xFF\xFF\xFF");
+  /*Serial2.print(comboBoxValues);
+  Serial2.print("\xFF\xFF\xFF");*/
 
   Serial2.print("page 1");
   Serial2.print("\xFF\xFF\xFF");
 
+  
+  
+  asyncServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/index.html", "text/html");
+  });
+  asyncServer.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/style.css","text/css");
+  });
+  asyncServer.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/html", "Files Sent");
+  }, handleUpload);
+  //server.onFileUpload(handleUpload);
+  
   
   
 
@@ -1145,8 +1226,14 @@ void loop(){
     msgIn.dispatch(MULTI_ROUTE3, multi3Callback);
     msgIn.dispatch(MULTI_ROUTE4, multi4Callback);
     msgIn.dispatch(MULTI_ROUTE5, multi5Callback);
-    msgIn.dispatch(SLIDER, sliderCallback);
+    //msgIn.dispatch(SLIDER, sliderCallback);
     
+    msgIn.route("/comps", compositionCallbackOSC);
+    msgIn.route("/colors", colorsCallbackOSC);
+    msgIn.dispatch("/playcomp", playCompositionCallbackOSC);
+    msgIn.dispatch("/stopcomp", stopCompositionCallbackOSC);
+    msgIn.dispatch("/decor", decorCallback);
+
     msgIn.dispatch(PP_ROUTE, ppCallback);
     msgIn.dispatch(PREVIOUS_ROUTE,previousCallback);
     msgIn.dispatch(NEXT_ROUTE,nextCallback);
@@ -1155,7 +1242,6 @@ void loop(){
     
     msgIn.dispatch(SYNC_ROUTE, syncCallback);
     msgIn.dispatch(DIMMER_ROUTE, dimmerCallback);
-    msgIn.dispatch(COLOR_ROUTE, colorCallback);
     msgIn.dispatch(WHITE_ROUTE, whiteCallback);
   }
 
@@ -1168,51 +1254,6 @@ void loop(){
     receivingPackets = false;
   }
 
-  
-  currentMillis = millis();
-  if(colorReceived && currentHue < newHue){
-    //trueWhite = false;
-    //normalWhite = false;
-    whiteStatus = false;
-    for(; (currentHue<newHue && (currentMillis - previousMillisColor >= 10)); (currentHue+=1500)){
-      pixels.fill(pixels.ColorHSV(currentHue,255,255),0,NUM_LEDS);
-      pixels.show();
-      Serial.println(currentHue);
-      currentMillis = millis();
-      previousMillisColor = currentMillis;
-      
-    }
-    if(currentHue>=newHue){
-      Serial.println("SAIO");
-      if(currentHue>65535){
-        currentHue = 65535;
-        pixels.fill(pixels.ColorHSV(currentHue,255,255),0,NUM_LEDS);
-        pixels.show();
-      }
-      colorReceived = false; 
-    }
-  }
-  else if(colorReceived && currentHue > newHue){
-    //trueWhite = false;
-    //normalWhite = false;
-    whiteStatus = false;
-    for(; (currentHue > newHue && (currentMillis - previousMillisColor >= 10)); (currentHue-=1500)){
-      pixels.fill(pixels.ColorHSV(currentHue,255,255),0,NUM_LEDS);
-      currentMillis = millis();
-      previousMillisColor = currentMillis;
-      pixels.show();
-      Serial.println(currentHue);
-    }
-    if(currentHue<=newHue){
-      Serial.println("SAIO");
-      if(currentHue<0){
-        currentHue=0;
-        pixels.fill(pixels.ColorHSV(currentHue,255,255),0,NUM_LEDS);
-        pixels.show();
-      }
-      colorReceived = false; 
-    }
-  }
   nexLoop(nex_listen_list);
   //wm.process();
   if(compositionMode){
