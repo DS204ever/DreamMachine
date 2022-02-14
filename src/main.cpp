@@ -811,6 +811,13 @@ void stopCompositionCallback(void *ptr){
     compositionTimestamp = 0;
     currentCompBright = 0;
     compositionMusicStartTime = 0;
+
+    sciWave1=0;
+    sciWave2=0;
+    sciTimestamp1=0;
+    sciTimestamp2=0;
+    scientificMode=false;
+    //compositionMode=false;
 }
 
 void pauseCompositionCallback(void *ptr){
