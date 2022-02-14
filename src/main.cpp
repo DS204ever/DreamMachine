@@ -783,7 +783,12 @@ void updateCallback(void *ptr){
   WiFi.mode(WIFI_STA); 
   wm.setConfigPortalBlocking(true);
   wm.resetSettings();
-  WiFi.begin();
+  if(!wm.autoConnect("Firmware Updater")){
+    Serial.println("Failed to connect");
+  }
+  else { 
+    Serial.println("Connected.");
+  }
   
 }
 void downloadMusicsCallback(void *ptr){
