@@ -982,6 +982,10 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
   }
 }
 
+float strobeToMotorHz(float strobeSpeed){
+  return strobeSpeed*0.1446-0.0418;
+}
+
 void setup() {
   
   
