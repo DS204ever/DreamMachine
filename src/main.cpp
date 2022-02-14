@@ -46,6 +46,12 @@ float compositionTimePaused;
 boolean compositionPaused = false;
 String compositionFileName;
 int compositionFileNumber = 1;
+boolean scientificMode = false;
+
+int sciTimestamp1 = 0;
+int sciTimestamp2 = 0;
+float sciWave1 = 0;
+float sciWave2 = 0;
 
 // CONFIGS!!
 // ----------------------------------------------
