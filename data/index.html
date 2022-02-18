@@ -1,6 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <script src="jquery-3.6.0.min.js" type="text/javascript"></script>
+  <script>
+    var form = document.getElementsByClassName("form")
+    $(function () {
+      $("button").click(function () {
+        var $fileUpload = $("input[type='file']");
+        if (parseInt($fileUpload.get(0).files.length) > 5) {
+          alert("You are only allowed to upload a maximum of 5 files");
+          return false
+        }else if(parseInt($fileUpload.get(0).files.length) == 0){
+          alert("Please select at least 1 file.");
+          return false
+        }
+      });
+    });
+  </script>
   <title>DreamMachine Web Server</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:,">
@@ -10,8 +26,8 @@
   <h1>DreamMachine Web Server</h1>
   <p>Upload your composition files here:</p>
   <form method="POST" action="/upload" enctype="multipart/form-data">
-  <input type="file" id="myFiles" name="filename" multiple>
-  <input type="submit" value="Submit">
-	</form>
+    <input type="file" id="myFiles" name="filename" multiple accept=".txt" id="nFiles">
+    <button>Submit</button>
+  </form>
 </body>
 </html>

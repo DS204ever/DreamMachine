@@ -18,6 +18,7 @@
 #include "SPIFFS.h"
 #include <DNSServer.h>
 
+DNSServer dnsServer;
 AsyncWebServer asyncServer(80);
 
 #define A1 100
@@ -161,11 +162,11 @@ NexButton previousButton = NexButton(3, 2, "b2");
 NexButton upButton = NexButton(3, 5, "b3");
 NexButton downButton = NexButton(3, 4, "b4");
 
-NexButton downloadButton = NexButton(4, 23, "b6");
-NexButton playCompositionButton = NexButton(4, 21, "b1");
-NexButton upButtonComp = NexButton(4, 25, "b2");
-NexButton downButtonComp = NexButton(4, 24, "b0");
-NexButton stopCompositionButton = NexButton(4, 22, "b7");
+NexButton downloadButton = NexButton(4, 20, "b6");
+NexButton playCompositionButton = NexButton(4, 18, "b1");
+NexButton upButtonComp = NexButton(4, 22, "b2");
+NexButton downButtonComp = NexButton(4, 21, "b0");
+NexButton stopCompositionButton = NexButton(4, 19, "b7");
 
 NexDSButton comp1 = NexDSButton(4, 3, "bt0");
 NexDSButton comp2 = NexDSButton(4, 4, "bt1");
@@ -230,7 +231,7 @@ NexTouch *nex_listen_list[] = {
     NULL};
 
 // dimmerLamp dimmer(triacpin, zcpin);
-
+boolean decorStatus = false;
 // UDP communication
 
 // stores the generated fade setting path
@@ -340,14 +341,14 @@ void whiteCallback(OSCMessage &msg)
 
 void changeBrightness(int newBrightness)
 {
-  if (whiteStatus)
+  /*if (whiteStatus)
   {
     pixels.fill(whiteMode, 0, NUM_LEDS);
   }
   else
   {
     pixels.fill(pixels.ColorHSV(currentHue, 255, 255), 0, NUM_LEDS);
-  }
+  }*/
   currentBrightness = newBrightness;
   pixels.setBrightness(newBrightness);
   if (newBrightness == 255)
@@ -649,15 +650,17 @@ void ppCallback(OSCMessage &msg)
 
 void unlockButtons()
 {
-  for (int i = 0; i < sizeof(myButtons); i++)
+  for (int i = 0; i < 5; i++)
   {
     if (!myButtons[i])
     {
       sprintf(buttonsBuffer, "tsw bt%d,1", i);
+      Serial.println(buttonsBuffer);
     }
     else
     {
       sprintf(buttonsBuffer, "tsw bt%d,0", i);
+      Serial.println(buttonsBuffer);
     }
     Serial2.print(buttonsBuffer);
     Serial2.print("\xFF\xFF\xFF");
@@ -666,7 +669,7 @@ void unlockButtons()
 
 void sendSerial2()
 {
-  for (int i = 0; i < sizeof(myButtons); i++)
+  for (int i = 0; i < 5; i++)
   {
     if (myButtons[i])
     {
@@ -682,19 +685,8 @@ void sendSerial2()
 }
 void decorNextionCallback(void *ptr)
 {
-  Serial.println("Decor");
-  // currentSpeed = 0;
-  stepper->setAcceleration(A1);
-  stepper->setSpeedInHz(160);
-  stepper->runBackward();
-  updateMyButtons(0);
-  sendSerial2();
-  unlockButtons();
-}
-void decorCallback(OSCMessage &msg)
-{
-  if (msg.isFloat(0) && (msg.getFloat(0) == 1.))
-  {
+  if(decorStatus==false){
+    decorStatus=true;
     Serial.println("Decor");
     // currentSpeed = 0;
     stepper->setAcceleration(A1);
@@ -703,6 +695,31 @@ void decorCallback(OSCMessage &msg)
     updateMyButtons(0);
     sendSerial2();
     unlockButtons();
+  }else{
+    decorStatus=false;
+    stepper->stopMove();
+  }
+  
+}
+void decorCallback(OSCMessage &msg)
+{
+  if (msg.isFloat(0))
+  {
+    if(msg.getFloat(0) == 1.){
+      decorStatus=true;
+      Serial.println("Decor");
+    // currentSpeed = 0;
+    stepper->setAcceleration(A1);
+    stepper->setSpeedInHz(160);
+    stepper->runBackward();
+    updateMyButtons(0);
+    sendSerial2();
+    unlockButtons();
+    }else if(msg.getFloat(0) == 0.){
+      decorStatus=false;
+      stepper->stopMove();
+    }
+    
   }
 }
 
@@ -878,7 +895,7 @@ void updateCallback(void *ptr)
 void downloadMusicsCallback(void *ptr)
 {
   Serial.println("entrou no download");
-  
+
   asyncServer.begin();
 }
 
@@ -898,7 +915,14 @@ void stopCompositionCallback(void *ptr)
   sciTimestamp1 = 0;
   sciTimestamp2 = 0;
   scientificMode = false;
-  // compositionMode=false;
+  changeBrightness(25);
+  applyCompositionChanges(NULL,"","white");
+  Serial2.println("tsw b1,1");
+  Serial2.print("\xFF\xFF\xFF");
+  Serial2.println("tsw b5,1");
+  Serial2.print("\xFF\xFF\xFF");
+  Serial2.println("tsw b6,1");
+  Serial2.print("\xFF\xFF\xFF");
 }
 
 void pauseCompositionCallback(void *ptr)
@@ -923,7 +947,7 @@ void playCompositionCallback(void *ptr)
 
     mp3.wakeup();
     mp3.play(compositionFileNumber);
-    currentVolume=15;
+    currentVolume = 15;
     mp3.setVol(currentVolume);
     compositionFileName = "/" + String(compositionFileNumber) + ".txt";
     compositionFile = SPIFFS.open(compositionFileName, "r");
@@ -959,7 +983,9 @@ void playCompositionCallback(void *ptr)
       }
 
       compositionMode = true;
-    }else{
+    }
+    else
+    {
       Serial.println("File doesnt exist.");
     }
   }
@@ -978,31 +1004,31 @@ void applyCompositionChanges(int dimmer, String wave, String color)
   else if (color.equals("red"))
   {
     // Serial.println("ENTROU red");
-    pixels.fill(pixels.Color(255, 0, 0, 0), 0, NUM_LEDS);
+    pixels.fill(pixels.Color(255, 0, 0, 13), 0, NUM_LEDS);
   }
   else if (color.equals("blue"))
   {
-    pixels.fill(pixels.Color(0, 0, 255, 0), 0, NUM_LEDS);
+    pixels.fill(pixels.Color(0, 0, 240, 0), 0, NUM_LEDS);
   }
   else if (color.equals("green"))
   {
-    pixels.fill(pixels.Color(0, 255, 0, 0), 0, NUM_LEDS);
+    pixels.fill(pixels.Color(0, 255, 0, 13), 0, NUM_LEDS);
   }
   else if (color.equals("purple"))
   {
-    pixels.fill(pixels.Color(128, 0, 128, 0), 0, NUM_LEDS);
+    pixels.fill(pixels.Color(255, 0, 255, 0), 0, NUM_LEDS);
   }
   else if (color.equals("yellow"))
   {
-    pixels.fill(pixels.Color(255, 192, 0, 0), 0, NUM_LEDS);
+    pixels.fill(pixels.Color(255, 140, 0, 13), 0, NUM_LEDS);
   }
   else if (color.equals("orange"))
   {
-    pixels.fill(pixels.Color(255, 165, 0, 0), 0, NUM_LEDS);
+    pixels.fill(pixels.Color(255, 64, 0, 13), 0, NUM_LEDS);
   }
   else if (color.equals("pink"))
   {
-    pixels.fill(pixels.Color(255, 20, 147, 0), 0, NUM_LEDS);
+    pixels.fill(pixels.Color(255, 20, 147, 13), 0, NUM_LEDS);
   }
   stepper->setAcceleration(A3);
   if (wave.equals("delta"))
@@ -1158,13 +1184,10 @@ void setup()
     if (!f.available())
     {
       Serial.println(file_name + " not found");
-    }else{
-      String output = f.readString();
-      Serial.println(output);
     }
     f.close();
   }
-  
+
   // END
   // MP3 CODE
   mp3.begin(9600);
@@ -1287,14 +1310,20 @@ void setup()
       }
     }
     Serial.println("Setting AP (Access Point)…");
+    WiFi.mode(WIFI_OFF);
+    delay(1000);
     WiFi.mode(WIFI_AP);
     WiFi.softAP(serverSSID);
+    //IPAddress Ip(4, 3, 2, 1);
+    //IPAddress NMask(255, 255, 255, 0);
+    //WiFi.softAPConfig(Ip,Ip,NMask);
     Serial.println("Setup Successful.");
     Serial.print("Initialized as ");
     Serial.println(serverSSID);
     IPAddress IP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
     Serial.println(IP);
+    //dnsServer.start(53, "*", WiFi.softAPIP());
   }
   else
   {
@@ -1356,9 +1385,10 @@ void setup()
                  { request->send(SPIFFS, "/index.html", "text/html"); });
   asyncServer.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
                  { request->send(SPIFFS, "/style.css", "text/css"); });
+  asyncServer.on("/jquery-3.6.0.min.js", HTTP_GET, [](AsyncWebServerRequest *request)
+                 { request->send(SPIFFS, "/jquery-3.6.0.min.js", "text/javascript"); });
   asyncServer.on(
-      "/upload", HTTP_POST, [](AsyncWebServerRequest *request)
-      { //request->send(200, "Files Sent", "text/html");
+      "/upload", HTTP_POST, [](AsyncWebServerRequest *request) { // request->send(200, "Files Sent", "text/html");
       },
       handleUpload);
   // server.onFileUpload(handleUpload);
@@ -1450,6 +1480,8 @@ void loop()
         stepper->stopMove();
         mp3.stop();
         compositionFile.close();
+        Serial2.print("tsw b1,1");
+        Serial2.print("\xFF\xFF\xFF");
         Serial2.print("tsw b5,1");
         Serial2.print("\xFF\xFF\xFF");
         Serial2.print("tsw b6,1");
